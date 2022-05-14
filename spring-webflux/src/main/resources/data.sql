@@ -1,0 +1,5 @@
+insert into users(name,surname,username,email,password) values('Daniel', 'Marcus','user12','user@gmail.com','password123')
+insert into users(name,surname,username,email,password) values('Daniel2', 'Marcus1','user12','user@gmail.com','password123')
+insert into users(name,surname,username,email,password) values('Daniel3', 'Marcus2','user12','user@gmail.com','password123')
+insert into users(name,surname,username,email,password) values('Daniel4', 'Marcus4','user12','user@gmail.com','password123')
+insert into users(name,surname,username,email,password) values('Daniel5', 'Marcus5','user12','user@gmail.com','password123')
