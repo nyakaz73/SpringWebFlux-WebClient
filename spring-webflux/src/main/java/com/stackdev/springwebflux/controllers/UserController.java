@@ -34,4 +34,8 @@ public class UserController {
     @ResponseStatus(HttpStatus.OK)
     public Mono<Users> updateUser(@RequestBody Users user){return userService.updateUser(user);}
 
+    @DeleteMapping("/user/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public  Mono<Void> deleteUser(@PathVariable Long id){return  userService.deleteUser(id);}
+
 }

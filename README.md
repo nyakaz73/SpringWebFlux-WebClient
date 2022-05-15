@@ -198,9 +198,64 @@ public class UserService {
 }
 
 ```
+First im going to start by injecting the UserRepository by annotating it with @Autowired
+
 As mentioned in the introduction section Spring WebFlux uses the Project Reactor for its reactive asyncrounous programming.
 Spring Webflux uses ***Flux*** and ***Mono*** for its data publishers.
 * *Flux* publishes a stream of elements from 0..N 
 * *Mono* published a stream of elements from 0..1
 
+For methods that will return a single stream instance we are going to wrap them with Mono as the return type.
+For method that will return multiple stream of elements we will put return type Flux.
 
+* Notice these return types are also enforced from  our ReactiveCrudRepository. eg ***userRepository.findById(id)*** it returns a single instance of the user as Mono.
+* Notice For the save user we are subscribing with empty method to indicate the termination of the stream **userRepository.save(users).subscribe()**
+  
+* Notice in the getUsers method i have introduced a delay of 2 seconds. This is to demonstrate the non-blocking pattern of Spring Webflux. When you test this method you will probably notice that
+the data will be returned as a stream, the client won't  have to wait for the whole response to be returned the client will subscribe to the data as it comes ,which is pretty cool in my opinion :)
+
+### d) Controller
+Inside your root project, create a package called ***controller***. In this package we are going to create an interface class called **UserController**.
+```java
+package com.stackdev.springwebflux.controllers;
+import com.stackdev.springwebflux.models.Users;
+import com.stackdev.springwebflux.services.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+@RestController
+@RequestMapping("/api")
+public class UserController {
+
+    @Autowired
+    UserService userService;
+
+    @GetMapping(value = "/users",produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Flux<Users> findAllUsers(){
+        return userService.getUsers();
+    }
+
+    @GetMapping("/user/{id}")
+    public Mono<Users> findUserById(@PathVariable Long id){return userService.getUserById(id);}
+
+    @PostMapping("/save")
+    @ResponseStatus(HttpStatus.CREATED)
+    public void saveUser(@RequestBody Users users){userService.addUser(users);}
+
+
+    @PutMapping("/update")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<Users> updateUser(@RequestBody Users user){return userService.updateUser(user);}
+
+    @DeleteMapping("/user/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public  Mono<Void> deleteUser(@PathVariable Long id){return  userService.deleteUser(id);}
+
+}
+
+```
