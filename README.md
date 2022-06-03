@@ -3,7 +3,7 @@
 In this tutorial you are going to learn how to go Reactive with Spring Webflux and WebClient.
 ### Show some :heart: and :star: the repo to support the project
 
-## 1. Introduction
+## 1a. Introduction
 Reactive Programming is a programming paradim that centers around asyncronous data streams.
 This means that a system is reactive if it is responsive ,resilient , elastic and event driven.
 Spring Webflux is a fully non-blocking web framework that fully centers around reactive programming. Spring Weblfux archives this by
@@ -13,7 +13,7 @@ handling requests.
 When talking about non-blocking or asynchronous request processing, it means no thread is in a waiting state. 
 Essentially, threads are able to complete their task without waiting for previous tasks to be completed.
 
-## 1. Spring Boot  (Initializer)
+## 1b. Spring Boot  (Initializer)
 To start off with you can use Spring Initializr  to get the Spring Boot project structure for you, and this can be found [here](https://start.spring.io/)
 
 Once you get there in this case im using Maven , and that's my personal preference over Gradle since it gives a nice xml layout for your setup , in terms of installing dependency , plugins etc. its essentially a tool for your project management, just like package.json for those who are familiar with node js.
@@ -257,5 +257,229 @@ public class UserController {
     public  Mono<Void> deleteUser(@PathVariable Long id){return  userService.deleteUser(id);}
 
 }
+
+```
+In the controller we are injecting the ***UserService*** we just created. Notice the return type of our endpoints they are just the same as the ones in the Service Class.
+I hope at this point everything else is now clear, you now have a full rest api running on Netty(Reactive Server) with Spring MVC.
+
+# 4 Spring WebClient
+
+Now that we have created our Spring WebFlux API its probably time we jump to Spring WebClient. 
+So what is Spring WebClient?
+I quote from Spring Documentation:
+```txt
+Simply put, WebClient is an interface representing the main entry point for performing web requests.
+
+It was created as part of the Spring Web Reactive module and will be replacing the classic RestTemplate in these scenarios. In addition, the new client is a reactive, non-blocking solution that works over the HTTP/1.1 protocol.
+
+It's important to note that even though it is, in fact, a non-blocking client and it belongs to the spring-webflux library, the solution offers support for both synchronous and asynchronous operations, making it suitable also for applications running on a Servlet Stack.
+```
+* I guess the above defination is self explanatory :) Now let jump into creating our service.
+* So we are going to create a Seperate spring project that is going to query our Spring Webflux service that we created above.
+
+### 4a. Spring Boot  (Initializer)
+To start off with you can use Spring Initializer  to get the Spring Boot project structure for you, and this can be found [here](https://start.spring.io/)
+
+You also need to add a couple of dependencies which are:
+* Spring Reactive Web - Build reactive web applications with Spring WebFlux and Netty.
+* Lombok - Java annotation library which helps reduce boilerplate code.
+
+As mentioned above Spring React Web dependancy comes the Spring WebClient.
+
+### 4b. WebClient Service
+Let's create our ***WebClientService*** just go ahead and create in inside a package called **services**.
+```java
+package com.stackdev.springwebclient.services;
+import com.stackdev.springwebclient.dto.Users;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.ClientResponse;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+@Service
+public class WebClientService {
+    private final WebClient webClient;
+
+    public WebClientService(WebClient.Builder webClientBuilder) {
+        this.webClient = webClientBuilder.baseUrl("http://localhost:8080/api").build();
+    }
+
+    public Flux<Users> findUsers(){
+        return this.webClient.get().uri("/users")
+                .retrieve()
+                .bodyToFlux(Users.class);
+    }
+
+    public Mono<Users> findUserById(Long id){
+        return this.webClient.get().uri("/user/{id}",id)
+                .retrieve()
+                .bodyToMono(Users.class);
+    }
+
+    public Mono<ClientResponse> saveUser(Users user){
+        return this.webClient.post().uri("/save")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(Mono.just(user), Users.class)
+                .exchange();
+    }
+
+    public Mono<Users> updateUser(Users user){
+        return this.webClient.put().uri("/update")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(Mono.just(user), Users.class)
+                .retrieve()
+                .bodyToMono(Users.class);
+    }
+
+    public Mono<Void> deleteUser(Long id){
+        return this.webClient.delete().uri("/user/{id}")
+                .retrieve()
+                .bodyToMono(Void.class);
+    }
+}
+
+```
+* The above service is the main class of our webclient. In this class we are writing our rest endpoint calls to call our webflux service we created earlier on.
+
+```java
+    private final WebClient webClient;
+    public WebClientService(WebClient.Builder webClientBuilder) {
+        this.webClient = webClientBuilder.baseUrl("http://localhost:8080/api").build();
+    }
+```
+* Firstly i started by initializing the WebClient, in the constructor of our services we are simply injecting our webClient by create a builder that will be able to point our webClient to our Spring WebFlux service running on **http://localhost:8080/api**.
+
+* Now that we have our ***baseUrl*** set for our webClient we then went on ahead and create the CRUD Service calls.
+
+```java
+public Flux<Users> findUsers(){
+        return this.webClient.get().uri("/users")
+                .retrieve()
+                .bodyToFlux(Users.class);
+    }
+```
+* Notice how we are using the same conversion we used in our WebFlux ie.
+* *Flux* to return 0..N elements of a reactive stream
+* *Mono* to return 0..1 0 to single element of a reactive stream
+
+In the above snippet we are using the webClient to run our *GET* request to http://localhost:8080/api/users.
+* The **retrieve** method is used to get the response from the webflux service.
+* The **bodyToFlux** is used to get response body only of a  flux as a Stream of Users.
+* The **Users** class is the DTO i created under the dto package here is how it looks:
+```java
+package com.stackdev.springwebclient.dto;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Users {
+    private String name;
+    private String surname;
+    private String email;
+    private String username;
+    private String password;
+}
+```
+The saveUser we are passing the header to our request by putting the content- type as application/json
+```java
+public Mono<ClientResponse> saveUser(Users user){
+        return this.webClient.post().uri("/save")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .body(Mono.just(user), Users.class)
+                .exchange();
+    }
+```
+* The **body** method is used to pass the Json request as a Mono of type Users
+* The **exchange** method is used to get the StatusReposnse  
+
+NOTE: Unlike retrieve(), when using exchange(), it is the responsibility of the application to
+consume any response content regardless of the scenario (success, error, unexpected data, etc). Not doing so can cause a memory leak. See ClientResponse for a list of all the available options for consuming the body.
+
+* For the updateUser and deleteUser services, we are just returnig the single instance of our stream as a mono using the bodyToMono , with deleteUser returning a Void.
+
+### 4c. WebClient Controller
+For the controller im not going to dwell much on this one , 
+Just go ahead and create ***WebClientController*** class inside a new package called **controllers**
+
+```java
+package com.stackdev.springwebclient.controllers;
+
+import com.stackdev.springwebclient.dto.Users;
+import com.stackdev.springwebclient.services.WebClientService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+@RestController
+@RequestMapping("/web")
+public class WebClientController {
+
+    @Autowired
+    WebClientService webClientService;
+
+    @GetMapping("/user/{id}")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Mono<Users> getUserById(@PathVariable Long id){
+        return webClientService.findUserById(id);
+    }
+
+    @GetMapping(value = "/users",produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Flux<Users> findAllUsers(){
+        return webClientService.findUsers();
+    }
+
+    @PostMapping("/save")
+    @ResponseStatus(HttpStatus.CREATED)
+    public void saveUser(@RequestBody Users users){webClientService.saveUser(users);}
+
+
+    @PutMapping("/update")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<Users> updateUser(@RequestBody Users user){return webClientService.updateUser(user);}
+
+    @DeleteMapping("/user/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<Void> deleteUser(@PathVariable Long id){return webClientService.deleteUser(id);}
+
+}
+```
+* Inside the controller we are simply going to inject the webservice that we created, and use the same conversation that we used for our webclient.
+
+* That's probably in the last writing i will do a load testing for Spring MVC vs Spring Webflux be sure to watch out for that one.
+  
+END !!
+
+* If there is anything you feel i should have covered or improve ,Please let me know in the comments section below.
+
+Thank you for taking your time in reading this article.
+
+KINDLY FORK AND STAR THE [REPO](https://github.com/nyakaz73/SpringWebFlux-WebClient) TO SUPPORT THIS PROJECT :)
+
+### Source Code Git repo
+The source code of this [repo](https://github.com/nyakaz73/SpringWebFlux-WebClient)
+### Pull Requests
+I Welcome and i encourage all Pull Requests....
+## Created and Maintained by
+* Author: [Tafadzwa Lameck Nyamukapa](https://github.com/nyakaz73)
+* Email:  [tafadzwalnyamukapa@gmail.com]
+* Youtube Channel: [Stack{Dev}](https://www.youtube.com/channel/UCacNBWW7T2j_St593VHvulg)
+* Open for collaborations and Remote Work!!
+* Happy Coding!!
+
+### License
+
+```
+MIT License
+
+Copyright (c) 2022 Tafadzwa Lameck Nyamukapa
 
 ```
