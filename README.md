@@ -1,7 +1,7 @@
 # Reactive Programming with SpringWebFlux-WebClient 
 
 In this tutorial you are going to learn how to go Reactive with Spring Webflux and WebClient.
-### Show some :heart: and :star: the repo to support the project
+### Show some :heart: and :star: to support the project
 
 ## 1a. Introduction
 Reactive Programming is a programming paradim that centers around asyncronous data streams.
